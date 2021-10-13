@@ -22,7 +22,7 @@ def load_book(path, filename, url, params=None):
 
 path = 'books'
 pathlib.Path(path).mkdir(exist_ok=True)
-for index in range(10):
+for index in range(1,11):
     url = "https://tululu.org/txt.php"
     payload = {"id": index}
     filename = f'book{index}.txt'
