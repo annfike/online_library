@@ -60,6 +60,19 @@ def get_book_pic(index):
     return pic_link
 
 
+def get_book_comments(index):
+    url = f'https://tululu.org/b{index}/'
+    response = requests.get(url)
+    response.raise_for_status()
+    check_for_redirect(response)
+    soup = BeautifulSoup(response.text, 'lxml')
+    for comment in soup.find_all('div', class_='texts'):
+        print(comment.find('span').text)
+
+    
+
+
+
 path = 'books'
 pathlib.Path(path).mkdir(exist_ok=True)
 for index in range(1,11):
@@ -68,9 +81,11 @@ for index in range(1,11):
     #filename = f'{index}.{filename}.txt'
     #filepath = Path(path) / filename
     try:
-        print(get_book_pic(index))
-        url = get_book_pic(index)
-        download_image(url, 'images')
+        print(get_book_title(index))
+        get_book_comments(index)
+        #print(get_book_pic(index))
+        #url = get_book_pic(index)
+        #download_image(url, 'images')
         #download_txt("https://tululu.org/txt.php", filename, path, params=payload)
     except requests.HTTPError:
         pass
