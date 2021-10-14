@@ -69,6 +69,19 @@ def get_book_comments(index):
     for comment in soup.find_all('div', class_='texts'):
         print(comment.find('span').text)
 
+
+def get_book_genre(index):
+    url = f'https://tululu.org/b{index}/'
+    response = requests.get(url)
+    response.raise_for_status()
+    check_for_redirect(response)
+    soup = BeautifulSoup(response.text, 'lxml')
+    for genre_tag in soup.find_all('span', class_='d_book'):
+        genres = []
+        for genre in genre_tag.find_all('a'):
+            genres.append(genre.text)
+        print(genres)
+
     
 
 
@@ -82,9 +95,10 @@ for index in range(1,11):
     #filepath = Path(path) / filename
     try:
         print(get_book_title(index))
-        get_book_comments(index)
+        get_book_genre(index)
+        #get_book_comments(index)
         #print(get_book_pic(index))
-        #url = get_book_pic(index)
+        url = get_book_pic(index)
         #download_image(url, 'images')
         #download_txt("https://tululu.org/txt.php", filename, path, params=payload)
     except requests.HTTPError:
