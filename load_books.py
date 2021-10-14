@@ -34,11 +34,8 @@ def download_image(url, path, params=None):
     with filepath.open('wb') as file:
        file.write(response.content)
 
-
-
-
-
-def get_book_title(index):
+    
+def parse_book_page(index):
     url = f'https://tululu.org/b{index}/'
     response = requests.get(url)
     response.raise_for_status()
@@ -46,44 +43,24 @@ def get_book_title(index):
     soup = BeautifulSoup(response.text, 'lxml')
     title_tag = soup.find('body').find('h1')
     title_text = title_tag.text.split('::')
-    title_text = title_text[0].strip()
-    return title_text
-
-def get_book_pic(index):
-    url = f'https://tululu.org/b{index}/'
-    response = requests.get(url)
-    response.raise_for_status()
-    check_for_redirect(response)
-    soup = BeautifulSoup(response.text, 'lxml')
+    title = title_text[0].strip()
+    author = title_text[1].strip()
     pic = soup.find('div', class_='bookimage').find('img')['src']
     pic_link = urljoin('https://tululu.org', pic)
-    return pic_link
-
-
-def get_book_comments(index):
-    url = f'https://tululu.org/b{index}/'
-    response = requests.get(url)
-    response.raise_for_status()
-    check_for_redirect(response)
-    soup = BeautifulSoup(response.text, 'lxml')
-    for comment in soup.find_all('div', class_='texts'):
-        print(comment.find('span').text)
-
-
-def get_book_genre(index):
-    url = f'https://tululu.org/b{index}/'
-    response = requests.get(url)
-    response.raise_for_status()
-    check_for_redirect(response)
-    soup = BeautifulSoup(response.text, 'lxml')
     for genre_tag in soup.find_all('span', class_='d_book'):
         genres = []
         for genre in genre_tag.find_all('a'):
             genres.append(genre.text)
-        print(genres)
-
-    
-
+    comments = []
+    for comment in soup.find_all('div', class_='texts'):
+        comments.append(comment.find('span').text)
+    book = dict()
+    book["Заголовок"] = title
+    book["Автор"] = author
+    book["Картинка"] = pic_link
+    book["Жанр"] = genres
+    book["Комментарии"] = comments
+    return book
 
 
 path = 'books'
@@ -94,11 +71,7 @@ for index in range(1,11):
     #filename = f'{index}.{filename}.txt'
     #filepath = Path(path) / filename
     try:
-        print(get_book_title(index))
-        get_book_genre(index)
-        #get_book_comments(index)
-        #print(get_book_pic(index))
-        url = get_book_pic(index)
+        print(parse_book_page(index))
         #download_image(url, 'images')
         #download_txt("https://tululu.org/txt.php", filename, path, params=payload)
     except requests.HTTPError:
