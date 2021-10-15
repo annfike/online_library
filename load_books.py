@@ -1,11 +1,12 @@
-import requests
+import argparse
+import os
 import pathlib
 from pathlib import Path
-from pathvalidate import sanitize_filename
+from urllib.parse import unquote, urljoin, urlsplit
+
+import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import os
-from urllib.parse import unquote, urlsplit
+from pathvalidate import sanitize_filename
 
 
 def check_for_redirect(response):
@@ -13,28 +14,27 @@ def check_for_redirect(response):
         raise requests.exceptions.HTTPError
 
 
-def download_txt(url, filename, path, params=None):
+def download_txt(url, filename, books_path, params=None):
     filename = sanitize_filename(filename)
-    filepath = Path(path) / filename
+    filepath = Path(books_path) / filename
     response = requests.get(url, params=params)
     response.raise_for_status()
     with filepath.open('wb') as file:
         file.write(response.content)
 
 
-def download_image(url, path, params=None):
-    pathlib.Path(path).mkdir(exist_ok=True)
+def download_image(url, images_path, params=None):
     unquoted = unquote(url)
     parsed = urlsplit(unquoted)
-    splited_path = os.path.split(parsed.path) 
-    filename = splited_path[-1] 
-    filepath = Path(path) / filename
+    splited_path = os.path.split(parsed.path)
+    filename = splited_path[-1]
+    filepath = Path(images_path) / filename
     response = requests.get(url, params=params)
     response.raise_for_status()
     with filepath.open('wb') as file:
-       file.write(response.content)
+        file.write(response.content)
 
-    
+
 def parse_book_page(index):
     url = f'https://tululu.org/b{index}/'
     response = requests.get(url)
@@ -55,27 +55,35 @@ def parse_book_page(index):
     for comment in soup.find_all('div', class_='texts'):
         comments.append(comment.find('span').text)
     book = dict()
-    book["Заголовок"] = title
-    book["Автор"] = author
-    book["Картинка"] = pic_link
-    book["Жанр"] = genres
-    book["Комментарии"] = comments
+    book['Заголовок'] = title
+    book['Автор'] = author
+    book['Картинка'] = pic_link
+    book['Жанр'] = genres
+    book['Комментарии'] = comments
     return book
 
 
-path = 'books'
-pathlib.Path(path).mkdir(exist_ok=True)
-for index in range(1,11):
-    payload = {"id": index}
-    #filename = get_book_title(index)
-    #filename = f'{index}.{filename}.txt'
-    #filepath = Path(path) / filename
-    try:
-        print(parse_book_page(index))
-        #download_image(url, 'images')
-        #download_txt("https://tululu.org/txt.php", filename, path, params=payload)
-    except requests.HTTPError:
-        pass
+def main():
+    books_path = 'books'
+    images_path = 'images'
+    pathlib.Path(books_path).mkdir(exist_ok=True)
+    pathlib.Path(images_path).mkdir(exist_ok=True)
+    parser = argparse.ArgumentParser(description='Get book')
+    parser.add_argument('start_id', default=1, type=int, help='Укажите начальную страницу')
+    parser.add_argument('end_id', default=10, type=int, help='Укажите конечную страницу')
+    args = parser.parse_args()
+    for index in range(args.start_id, args.end_id+1):
+        payload = {'id': index}
+        try:
+            book_title = parse_book_page(index)['Заголовок']
+            filename = f'{index}.{book_title}.txt'
+            print(parse_book_page(index))
+            url = parse_book_page(index)['Картинка']
+            download_image(url, images_path)
+            download_txt('https://tululu.org/txt.php', filename, books_path, params=payload)
+        except requests.HTTPError:
+            pass
 
 
-
+if __name__ == '__main__':
+    main()
