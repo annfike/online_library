@@ -3,6 +3,7 @@ import os
 import pathlib
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
+from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,15 +20,17 @@ def download_txt(url, filename, books_path, params=None):
     filepath = Path(books_path) / filename
     response = requests.get(url, params=params)
     response.raise_for_status()
-    with filepath.open('wb') as file:
-        file.write(response.content)
+    with filepath.open('w', encoding="utf-8") as file:
+        file.write(response.text)
 
 
 def download_image(url, images_path, params=None):
     unquoted = unquote(url)
     parsed = urlsplit(unquoted)
     splited_path = os.path.split(parsed.path)
-    filename = splited_path[-1]
+    dt = datetime.now()
+    ts = int(datetime.timestamp(dt))
+    filename = f'{ts}_{splited_path[-1]}'
     filepath = Path(images_path) / filename
     response = requests.get(url, params=params)
     response.raise_for_status()
@@ -43,26 +46,24 @@ def parse_book_page(index):
     soup = BeautifulSoup(response.text, 'lxml')
     title_tag = soup.find('body').find('h1')
     title_text = title_tag.text.split('::')
-    title = title_text[0].strip()
-    author = title_text[1].strip()
+    title, author = title_text
+    title, author = title.strip(), author.strip()
     pic = soup.find('div', class_='bookimage').find('img')['src']
     pic_link = urljoin('https://tululu.org', pic)
     for genre_tag in soup.find_all('span', class_='d_book'):
-        genres = []
-        for genre in genre_tag.find_all('a'):
-            genres.append(genre.text)
-    comments = []
-    for comment in soup.find_all('div', class_='texts'):
-        comments.append(comment.find('span').text)
-    book = dict()
-    book['Заголовок'] = title
-    book['Автор'] = author
-    book['Картинка'] = pic_link
-    book['Жанр'] = genres
-    book['Комментарии'] = comments
+        genres = [genre.text for genre in genre_tag.find_all('a')]
+    comments = [comment.find('span').text for comment in soup.find_all('div', class_='texts')]
+    book = {
+    'Заголовок': title,
+    'Автор': author,
+    'Картинка': pic_link,
+    'Жанр': genres,
+    'Комментарии': comments,
+    }
     return book
 
 
+#parse_book_page('5')
 def main():
     books_path = 'books'
     images_path = 'images'
@@ -72,13 +73,13 @@ def main():
     parser.add_argument('start_id', default=1, type=int, help='Укажите начальную страницу')
     parser.add_argument('end_id', default=10, type=int, help='Укажите конечную страницу')
     args = parser.parse_args()
-    for index in range(args.start_id, args.end_id+1):
-        payload = {'id': index}
+    for book_id in range(args.start_id, args.end_id+1):
+        payload = {'id': book_id}
         try:
-            book_title = parse_book_page(index)['Заголовок']
-            filename = f'{index}.{book_title}.txt'
-            print(parse_book_page(index))
-            url = parse_book_page(index)['Картинка']
+            book_page = parse_book_page(book_id)
+            book_title = book_page['Заголовок']
+            filename = f'{book_id}.{book_title}.txt'
+            url = book_page['Картинка']
             download_image(url, images_path)
             download_txt('https://tululu.org/txt.php', filename, books_path, params=payload)
         except requests.HTTPError:
