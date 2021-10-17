@@ -3,7 +3,6 @@ import os
 import pathlib
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
-from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,13 +23,11 @@ def download_txt(url, filename, books_path, params=None):
         file.write(response.text)
 
 
-def download_image(url, images_path, params=None):
+def download_image(url, book_id, images_path, params=None):
     unquoted = unquote(url)
     parsed = urlsplit(unquoted)
     splited_path = os.path.split(parsed.path)
-    dt = datetime.now()
-    ts = int(datetime.timestamp(dt))
-    filename = f'{ts}_{splited_path[-1]}'
+    filename = f'{book_id}_{splited_path[-1]}'
     filepath = Path(images_path) / filename
     response = requests.get(url, params=params)
     response.raise_for_status()
@@ -45,25 +42,23 @@ def parse_book_page(index):
     check_for_redirect(response)
     soup = BeautifulSoup(response.text, 'lxml')
     title_tag = soup.find('body').find('h1')
-    title_text = title_tag.text.split('::')
-    title, author = title_text
+    title, author = title_tag.text.split('::')
     title, author = title.strip(), author.strip()
     pic = soup.find('div', class_='bookimage').find('img')['src']
     pic_link = urljoin('https://tululu.org', pic)
-    for genre_tag in soup.find_all('span', class_='d_book'):
-        genres = [genre.text for genre in genre_tag.find_all('a')]
+    genre_tag = soup.find('span', class_='d_book')
+    genres = [genre.text for genre in genre_tag.find_all('a')]
     comments = [comment.find('span').text for comment in soup.find_all('div', class_='texts')]
     book = {
-    'Заголовок': title,
-    'Автор': author,
-    'Картинка': pic_link,
-    'Жанр': genres,
-    'Комментарии': comments,
+        'Заголовок': title,
+        'Автор': author,
+        'Картинка': pic_link,
+        'Жанр': genres,
+        'Комментарии': comments,
     }
     return book
 
 
-#parse_book_page('5')
 def main():
     books_path = 'books'
     images_path = 'images'
@@ -80,7 +75,7 @@ def main():
             book_title = book_page['Заголовок']
             filename = f'{book_id}.{book_title}.txt'
             url = book_page['Картинка']
-            download_image(url, images_path)
+            download_image(url, book_id, images_path)
             download_txt('https://tululu.org/txt.php', filename, books_path, params=payload)
         except requests.HTTPError:
             pass
