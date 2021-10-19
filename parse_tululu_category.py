@@ -16,8 +16,10 @@ def parse_categorye(start_page, end_page):
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'lxml')
-        book_tags = [book.find('a')['href'] for book in soup.find_all('table', class_ = 'd_book')]
-        book_pages = [urljoin('https://tululu.org', book) for book in book_tags]
+        book_selector = '.bookimage a'
+        book_tags = soup.select(book_selector)
+        books = [book['href'] for book in book_tags]
+        book_pages = [urljoin('https://tululu.org', book) for book in books]
         return book_pages
         
 
@@ -53,14 +55,19 @@ def parse_book_page(index):
     response.raise_for_status()
     check_for_redirect(response)
     soup = BeautifulSoup(response.text, 'lxml')
-    title_tag = soup.find('body').find('h1')
+    title_selector = "body h1"
+    title_tag = soup.select_one(title_selector)
     title, author = title_tag.text.split('::')
     title, author = title.strip(), author.strip()
-    pic = soup.find('div', class_='bookimage').find('img')['src']
+    pic_selector = ".bookimage img"
+    pic = soup.select_one(pic_selector)['src']
     pic_link = urljoin('https://tululu.org', pic)
-    genre_tag = soup.find('span', class_='d_book')
-    genres = [genre.text for genre in genre_tag.find_all('a')]
-    comments = [comment.find('span').text for comment in soup.find_all('div', class_='texts')]
+    genre_selector = "span.d_book a"
+    genres_tag = soup.select(genre_selector)
+    genres = [genre.text for genre in genres_tag]
+    comments_selector = ".texts span"
+    comments_tag = soup.select(comments_selector)
+    comments = [comment.text for comment in comments_tag]
     book = {
         'Заголовок': title,
         'Автор': author,
@@ -78,7 +85,7 @@ def main():
     pathlib.Path(images_path).mkdir(exist_ok=True)
     parser = argparse.ArgumentParser(description='Get book')
     parser.add_argument('start_page', default=1, type=int, help='Укажите начальную страницу')
-    parser.add_argument('end_page', default=10, type=int, help='Укажите конечную страницу')
+    parser.add_argument('end_page', default=1, type=int, help='Укажите конечную страницу')
     args = parser.parse_args()
     book_links = parse_categorye(args.start_page, args.end_page)
     for book_link in book_links:
