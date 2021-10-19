@@ -84,8 +84,8 @@ def main():
     pathlib.Path(books_path).mkdir(exist_ok=True)
     pathlib.Path(images_path).mkdir(exist_ok=True)
     parser = argparse.ArgumentParser(description='Get book')
-    parser.add_argument('start_page', default=1, type=int, help='Укажите начальную страницу')
-    parser.add_argument('end_page', default=1, type=int, help='Укажите конечную страницу')
+    parser.add_argument('--start_page', default=1, type=int, help='Укажите начальную страницу')
+    parser.add_argument('--end_page', default=701, type=int, help='Укажите конечную страницу')
     args = parser.parse_args()
     book_links = parse_categorye(args.start_page, args.end_page)
     for book_link in book_links:
