@@ -12,13 +12,15 @@ from pathvalidate import sanitize_filename
 
 
 def parse_category(start_page, end_page):
+    books = []
     for page in range(start_page, end_page):
         url = f'https://tululu.org/l55/{page}'
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'lxml')
         book_tags = soup.select('.bookimage a')
-        books = [book['href'] for book in book_tags]
+        for book in book_tags:
+            books.append(book['href'])
     return books
 
         
@@ -27,9 +29,8 @@ def get_category_last_page():
     response = requests.get(url)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'lxml')
-    last_page_tags = soup.select('.npage')[-1]
-    last_page = last_page_tags.text
-    return last_page
+    last_page_tag = soup.select_one('.npage:last-child')
+    return last_page_tag.text
 
 
 def check_for_redirect(response):
@@ -44,6 +45,7 @@ def download_txt(url, filename, books_path, params=None):
     response.raise_for_status()
     with filepath.open('w', encoding='utf-8') as file:
         file.write(response.text)
+    return str(Path.cwd() / filepath)
 
 
 def download_image(url, book_id, images_path, params=None):
@@ -56,6 +58,7 @@ def download_image(url, book_id, images_path, params=None):
     response.raise_for_status()
     with filepath.open('wb') as file:
         file.write(response.content)
+    return str(Path.cwd() / filepath)
 
 
 def parse_book_page(index):
@@ -91,12 +94,10 @@ def main():
     parser.add_argument('--pic_folder', default='images', type=str, help='Папка для скачивания картинок')
     parser.add_argument('--skip_imgs', action='store_true', help='Не скачивать картинки')
     parser.add_argument('--skip_txt', action='store_true', help='Не скачивать книги')
-    parser.add_argument('--json_path', type=str, help='path to JSON')
+    parser.add_argument('--json_path', default='', type=str, help='path to JSON')
     args = parser.parse_args()
-    books_path = args.book_folder
-    images_path = args.pic_folder
-    pathlib.Path(books_path).mkdir(exist_ok=True)
-    pathlib.Path(images_path).mkdir(exist_ok=True)
+    pathlib.Path(args.book_folder).mkdir(exist_ok=True)
+    pathlib.Path(args.pic_folder).mkdir(exist_ok=True)
     book_links = parse_category(args.start_page, args.end_page)
     books = []
     for book_link in book_links:
@@ -108,20 +109,17 @@ def main():
             filename = f'{book_id}.{book_title}.txt'
             url = book_page['Картинка']
             if not args.skip_imgs:
-                download_image(url, book_id, images_path)
+                book_page['Обложка'] = download_image(url, book_id, args.pic_folder)
             if not args.skip_txt:
-                download_txt('https://tululu.org/txt.php', filename, books_path, params=payload)
+                book_page['Ссылка'] = download_txt('https://tululu.org/txt.php', filename, args.book_folder, params=payload)
             del book_page['Картинка']
-            book_folder = Path.cwd() / Path(books_path) / filename
-            book_page['Ссылка'] = str(book_folder)
             books.append(book_page)
         except requests.HTTPError:
             pass
-    json_path = args.json_path or ''
-    pathlib.Path(json_path).mkdir(exist_ok=True)
-    filepath_json = Path(json_path) / 'books.json'
-    with open(filepath_json, 'w') as my_file:
-        json.dump(books, my_file, ensure_ascii=False)
+    pathlib.Path(args.json_path).mkdir(exist_ok=True)
+    filepath_json = Path(args.json_path) / 'books.json'
+    with open(filepath_json, 'w') as file:
+        json.dump(books, file, ensure_ascii=False)
 
 
 
